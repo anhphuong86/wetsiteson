@@ -52,7 +52,11 @@ import {
   setDoc,
   deleteDoc,
   handleFirestoreError,
-  OperationType
+  OperationType,
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL
 } from './lib/firebase';
 
 export interface Dealer {
@@ -67,6 +71,7 @@ export interface Dealer {
 function AdminProductItem({ product, onSave, onDelete }: { product: Product, onSave: (p: Product) => Promise<void>, onDelete: (id: string) => Promise<void>, key?: any }) {
   const [editing, setEditing] = React.useState(false);
   const [localProduct, setLocalProduct] = React.useState(product);
+  const [uploading, setUploading] = React.useState(false);
 
   const handleFieldChange = (field: keyof Product, value: any) => {
     setLocalProduct(prev => ({ ...prev, [field]: value }));
@@ -79,19 +84,53 @@ function AdminProductItem({ product, onSave, onDelete }: { product: Product, onS
     }));
   };
 
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const storageRef = ref(storage, `products/${localProduct.id || Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      handleFieldChange('image', url);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
-    <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-brand-charcoal/5 flex gap-8 group">
-       <div className="w-40 shrink-0">
+    <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-brand-charcoal/5 flex flex-col md:flex-row gap-8 group">
+       <div className="w-40 shrink-0 mx-auto md:mx-0">
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-brand-light mb-4 group/img">
-             <img src={localProduct.image} alt={localProduct.name} className="w-full h-full object-cover" />
+             {uploading ? (
+               <div className="absolute inset-0 bg-brand-charcoal/20 flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
+               </div>
+             ) : (
+               <img src={localProduct.image} alt={localProduct.name} className="w-full h-full object-cover" />
+             )}
              {editing && (
-               <div className="absolute inset-0 bg-brand-charcoal/60 flex items-center justify-center p-4">
+               <div className="absolute inset-0 bg-brand-charcoal/60 flex flex-col items-center justify-center p-4 gap-2">
+                  <label className="cursor-pointer bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors">
+                    <ImageIcon size={20} className="text-white" />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      disabled={uploading}
+                    />
+                  </label>
                   <input 
                     type="text" 
                     value={localProduct.image} 
                     onChange={(e) => handleFieldChange('image', e.target.value)}
                     className="w-full bg-white/90 rounded px-2 py-1 text-[8px] font-mono"
-                    placeholder="Image URL"
+                    placeholder="Hoặc dán URL"
                   />
                </div>
              )}
@@ -208,11 +247,50 @@ function AdminProductItem({ product, onSave, onDelete }: { product: Product, onS
 function AdminCertItem({ cert, onSave, onDelete }: { cert: any, onSave: (c: any) => Promise<void>, onDelete: (id: string) => Promise<void>, key?: any }) {
   const [editing, setEditing] = React.useState(false);
   const [localCert, setLocalCert] = React.useState(cert);
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const storageRef = ref(storage, `certificates/${localCert.id || Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setLocalCert({ ...localCert, imageUrl: url });
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="bg-white p-6 rounded-[2.5rem] shadow-lg border border-brand-charcoal/5 group">
-       <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light mb-6">
-          <img src={localCert.imageUrl} alt={localCert.title} className="w-full h-full object-cover" />
+       <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light mb-6 relative">
+          {uploading ? (
+             <div className="absolute inset-0 bg-brand-charcoal/20 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
+             </div>
+          ) : (
+             <img src={localCert.imageUrl} alt={localCert.title} className="w-full h-full object-cover" />
+          )}
+          {editing && (
+             <div className="absolute inset-0 bg-brand-charcoal/60 flex items-center justify-center">
+                <label className="cursor-pointer bg-white/20 hover:bg-white/30 p-4 rounded-full transition-colors">
+                   <ImageIcon size={32} className="text-white" />
+                   <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      disabled={uploading}
+                   />
+                </label>
+             </div>
+          )}
        </div>
        {editing ? (
          <div className="space-y-4">
@@ -814,8 +892,8 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-light bg-dots-pattern">
       {/* Professional Sticky Nav */}
-      <nav className="fixed top-0 left-0 w-full z-[100] px-6 py-6 transition-all duration-500">
-        <div className="max-w-7xl mx-auto glass-card rounded-[2.5rem] h-20 px-10 flex items-center justify-between border border-white/40 shadow-2xl relative overflow-hidden group">
+      <nav className="fixed top-0 left-0 w-full z-[100] px-4 py-4 md:px-6 md:py-6 transition-all duration-500">
+        <div className="max-w-7xl mx-auto glass-card rounded-[2rem] md:rounded-[2.5rem] h-16 md:h-20 px-6 md:px-10 flex items-center justify-between border border-white/40 shadow-2xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-brand-accent/5 via-transparent to-brand-gold/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           <div className="flex items-center gap-2 sm:gap-6 relative z-10">
             <motion.div 
@@ -1749,24 +1827,24 @@ export default function App() {
                                 </button>
                               </div>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-6 border-t border-white/5">
-                                <div>
-                                  <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">{lang === 'vi' ? 'Diện tích sàn' : 'Floor Area'}</div>
-                                  <div className="text-xl font-bold">{area} m²</div>
-                                </div>
-                                <div>
-                                  <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">{lang === 'vi' ? 'DT Sơn thực tế' : 'Real Surface'}</div>
-                                  <div className="text-xl font-bold text-brand-accent">{estimation.realArea.toLocaleString()} m²</div>
-                                </div>
-                                <div>
-                                  <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">{lang === 'vi' ? 'Không gian' : 'Space'}</div>
-                                  <div className="text-lg font-bold">{surfaceType === 'interior' ? t.surfaceInterior : t.surfaceExterior}</div>
-                                </div>
-                                <div>
-                                  <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">{lang === 'vi' ? 'Loại hình' : 'Build Type'}</div>
-                                  <div className="text-lg font-bold truncate max-w-[120px]">{t[`houseType${houseType.charAt(0).toUpperCase() + houseType.slice(1)}` as keyof typeof t] || houseType}</div>
-                                </div>
-                              </div>
+                                  <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-6 border-t border-white/5">
+                                    <div className="min-w-0">
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Diện tích sàn' : 'Floor Area'}</div>
+                                      <div className="text-[10px] sm:text-lg font-bold truncate text-white">{area} m²</div>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'DT Sơn thực tế' : 'Real Surface'}</div>
+                                      <div className="text-[10px] sm:text-lg font-bold text-brand-green truncate">{estimation.realArea.toLocaleString()} m²</div>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Không gian' : 'Space'}</div>
+                                      <div className="text-[10px] sm:text-lg font-bold truncate text-white">{surfaceType === 'interior' ? t.surfaceInterior : t.surfaceExterior}</div>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Loại hình' : 'Build Type'}</div>
+                                      <div className="text-[10px] sm:text-lg font-bold truncate text-white">{t[`houseType${houseType.charAt(0).toUpperCase() + houseType.slice(1)}` as keyof typeof t] || houseType}</div>
+                                    </div>
+                                  </div>
                            </div>
                            
                            <div className="w-full lg:w-72 flex flex-col gap-4">
@@ -1803,18 +1881,18 @@ export default function App() {
                                     <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-brand-green shrink-0">
                                       {idx === 0 ? <Zap size={20} /> : idx === 1 ? <Droplets size={20} /> : <PaintBucket size={20} />}
                                     </div>
-                                    <div className="flex-1 text-center sm:text-left">
-                                      <h4 className="text-base font-black text-white group-hover:text-brand-green transition-colors">{item.name}</h4>
-                                      <div className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{projType === 'wall' ? 'Wall System Component' : 'Specialized Product'}</div>
+                                    <div className="flex-1 text-center sm:text-left min-w-0">
+                                      <h4 className="text-sm sm:text-base font-black text-white group-hover:text-brand-green transition-colors truncate">{item.name}</h4>
+                                      <div className="text-[8px] sm:text-[9px] font-bold text-white/20 uppercase tracking-widest">{projType === 'wall' ? 'Wall System Component' : 'Specialized Product'}</div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-8 items-center text-right sm:min-w-[240px]">
-                                      <div>
-                                        <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">{lang === 'vi' ? 'Khối lượng' : 'Quantity'}</div>
-                                        <div className="text-lg font-black">{item.qty} <span className="text-[10px] text-white/40 uppercase">{item.unit}</span></div>
+                                    <div className="flex flex-row sm:grid sm:grid-cols-2 gap-4 sm:gap-8 items-center justify-between sm:justify-end text-right sm:min-w-[240px] w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
+                                      <div className="text-left sm:text-right">
+                                        <div className="text-[8px] font-black text-white/50 uppercase tracking-widest">{lang === 'vi' ? 'Khối lượng' : 'Quantity'}</div>
+                                        <div className="text-sm sm:text-lg font-black text-white">{item.qty} <span className="text-[10px] text-white/60 uppercase font-bold">{item.unit}</span></div>
                                       </div>
-                                      <div>
-                                        <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">{lang === 'vi' ? 'Chi phí dự kiến' : 'Est. Cost'}</div>
-                                        <div className="text-lg font-black text-white/90">{item.cost.toLocaleString()}đ</div>
+                                      <div className="text-right">
+                                        <div className="text-[8px] font-black text-white/50 uppercase tracking-widest">{lang === 'vi' ? 'Chi phí dự kiến' : 'Est. Cost'}</div>
+                                        <div className="text-sm sm:text-lg font-black text-brand-green">{item.cost.toLocaleString()}đ</div>
                                       </div>
                                     </div>
                                   </div>
@@ -1825,18 +1903,18 @@ export default function App() {
                                     <div className="w-12 h-12 bg-brand-accent/20 rounded-xl flex items-center justify-center text-brand-accent shrink-0">
                                       <Zap size={20} />
                                     </div>
-                                    <div className="flex-1 text-center sm:text-left">
-                                      <h4 className="text-base font-black text-white">Chi phí thi công trọn gói</h4>
-                                      <div className="text-[9px] font-bold text-brand-accent/50 uppercase tracking-widest">Professional Labor Service</div>
+                                    <div className="flex-1 text-center sm:text-left min-w-0">
+                                      <h4 className="text-sm sm:text-base font-black text-white">Chi phí thi công trọn gói</h4>
+                                      <div className="text-[8px] sm:text-[9px] font-bold text-brand-accent/50 uppercase tracking-widest">Professional Labor Service</div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-8 items-center text-right sm:min-w-[240px]">
-                                      <div>
-                                        <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">{lang === 'vi' ? 'Diện tích' : 'Quantity'}</div>
-                                        <div className="text-lg font-black">{estimation.realArea.toLocaleString()} <span className="text-[10px] text-white/40 uppercase">m²</span></div>
+                                    <div className="flex flex-row sm:grid sm:grid-cols-2 gap-4 sm:gap-8 items-center justify-between sm:justify-end text-right sm:min-w-[240px] w-full sm:w-auto border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
+                                      <div className="text-left sm:text-right">
+                                        <div className="text-[8px] font-black text-white/50 uppercase tracking-widest">{lang === 'vi' ? 'Diện tích' : 'Quantity'}</div>
+                                        <div className="text-sm sm:text-lg font-black text-white">{estimation.realArea.toLocaleString()} <span className="text-[10px] text-white/60 uppercase font-bold">m²</span></div>
                                       </div>
-                                      <div>
-                                        <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">{lang === 'vi' ? 'Thành tiền' : 'Subtotal'}</div>
-                                        <div className="text-lg font-black text-white/90">{estimation.labor.toLocaleString()}đ</div>
+                                      <div className="text-right">
+                                        <div className="text-[8px] font-black text-white/50 uppercase tracking-widest">{lang === 'vi' ? 'Thành tiền' : 'Subtotal'}</div>
+                                        <div className="text-sm sm:text-lg font-black text-brand-accent">{estimation.labor.toLocaleString()}đ</div>
                                       </div>
                                     </div>
                                   </div>
