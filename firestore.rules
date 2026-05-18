@@ -40,5 +40,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin() && isValidId(dealerId);
     }
+
+    // Projects
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(projectId);
+    }
   }
 }

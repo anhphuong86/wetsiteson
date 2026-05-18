@@ -37,7 +37,7 @@ import {
   Settings,
   Image as ImageIcon
 } from 'lucide-react';
-import { PRODUCTS, NAV_LINKS, Product, PARTNERS, PROJECTS, FEATURES_7, CRITERIA_9, TRANSLATIONS, PRICE_LIST, COLOR_PRICES, CALC_CONSTANTS, FAN_DECK } from './data';
+import { PRODUCTS, NAV_LINKS, Product, Project, PARTNERS, PROJECTS, FEATURES_7, CRITERIA_9, TRANSLATIONS, PRICE_LIST, COLOR_PRICES, CALC_CONSTANTS, FAN_DECK } from './data';
 import { 
   db, 
   auth, 
@@ -68,7 +68,7 @@ export interface Dealer {
 }
 
 // Helper Components for Admin
-function AdminProductItem({ product, onSave, onDelete }: { product: Product, onSave: (p: Product) => Promise<void>, onDelete: (id: string) => Promise<void>, key?: any }) {
+function AdminProductItem({ product, onSave, onDelete, lang }: { product: Product, onSave: (p: Product) => Promise<void>, onDelete: (id: string) => Promise<void>, lang: 'vi' | 'en' }) {
   const [editing, setEditing] = React.useState(false);
   const [localProduct, setLocalProduct] = React.useState(product);
   const [uploading, setUploading] = React.useState(false);
@@ -105,7 +105,7 @@ function AdminProductItem({ product, onSave, onDelete }: { product: Product, onS
   return (
     <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-brand-charcoal/5 flex flex-col md:flex-row gap-8 group">
        <div className="w-40 shrink-0 mx-auto md:mx-0">
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-brand-light mb-4 group/img">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-brand-light mb-4 group/img border border-brand-charcoal/5">
              {uploading ? (
                <div className="absolute inset-0 bg-brand-charcoal/20 flex items-center justify-center">
                   <div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
@@ -269,7 +269,7 @@ function AdminCertItem({ cert, onSave, onDelete }: { cert: any, onSave: (c: any)
 
   return (
     <div className="bg-white p-6 rounded-[2.5rem] shadow-lg border border-brand-charcoal/5 group">
-       <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light mb-6 relative">
+       <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light mb-6 relative border border-brand-charcoal/5">
           {uploading ? (
              <div className="absolute inset-0 bg-brand-charcoal/20 flex items-center justify-center">
                 <div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
@@ -423,6 +423,112 @@ function AdminDealerItem({ dealer, onSave, onDelete }: { dealer: Dealer, onSave:
   );
 }
 
+function AdminProjectItem({ project, onSave, onDelete }: { project: Project, onSave: (p: Project) => Promise<void>, onDelete: (id: string) => Promise<void>, key?: any }) {
+  const [editing, setEditing] = React.useState(false);
+  const [localProject, setLocalProject] = React.useState(project);
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const storageRef = ref(storage, `projects/${localProject.id || Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setLocalProject({ ...localProject, image: url });
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-[2.5rem] shadow-lg border border-brand-charcoal/5 group">
+       <div className="aspect-video rounded-2xl overflow-hidden bg-brand-light mb-6 relative border border-brand-charcoal/5">
+          {uploading ? (
+             <div className="absolute inset-0 bg-brand-charcoal/20 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
+             </div>
+          ) : (
+             <img src={localProject.image} alt={localProject.name} className="w-full h-full object-cover" />
+          )}
+          {editing && (
+             <div className="absolute inset-0 bg-brand-charcoal/60 flex items-center justify-center">
+                <label className="cursor-pointer bg-white/20 hover:bg-white/30 p-4 rounded-full transition-colors">
+                   <ImageIcon size={32} className="text-white" />
+                   <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      disabled={uploading}
+                   />
+                </label>
+             </div>
+          )}
+       </div>
+       {editing ? (
+         <div className="space-y-4">
+           <input 
+             type="text" 
+             value={localProject.name}
+             onChange={(e) => setLocalProject({ ...localProject, name: e.target.value })}
+             className="w-full bg-brand-light rounded-xl px-4 py-2 font-bold text-sm"
+             placeholder="Tên dự án"
+           />
+           <div className="grid grid-cols-2 gap-2">
+             <input 
+               type="text" 
+               value={localProject.type.vi}
+               onChange={(e) => setLocalProject({ ...localProject, type: { ...localProject.type, vi: e.target.value } })}
+               className="w-full bg-brand-light rounded-xl px-4 py-2 text-[10px]"
+               placeholder="Loại (Vi)"
+             />
+             <input 
+               type="text" 
+               value={localProject.type.en}
+               onChange={(e) => setLocalProject({ ...localProject, type: { ...localProject.type, en: e.target.value } })}
+               className="w-full bg-brand-light rounded-xl px-4 py-2 text-[10px]"
+               placeholder="Loại (En)"
+             />
+           </div>
+           <div className="flex gap-2 justify-end pt-2">
+             <button 
+               onClick={() => {
+                 onSave(localProject);
+                 setEditing(false);
+               }}
+               className="bg-brand-green text-white p-2 px-3 rounded-lg text-[8px] font-black uppercase tracking-widest"
+             >
+                Lưu
+             </button>
+             <button 
+               onClick={() => setEditing(false)}
+               className="bg-brand-charcoal/5 text-brand-charcoal/40 p-2 px-3 rounded-lg text-[8px] font-black uppercase tracking-widest"
+             >
+                Hủy
+             </button>
+           </div>
+         </div>
+       ) : (
+         <div className="flex justify-between items-center">
+            <div>
+               <div className="text-[8px] font-black uppercase text-brand-accent tracking-widest mb-1">{localProject.type.vi}</div>
+               <h3 className="font-black text-brand-charcoal text-xs uppercase tracking-tight">{localProject.name}</h3>
+            </div>
+            <div className="flex gap-2">
+               <button onClick={() => setEditing(true)} className="p-2 text-brand-charcoal/30 hover:text-brand-green transition-colors"><Settings size={14} /></button>
+               <button onClick={() => onDelete(localProject.id)} className="p-2 text-brand-charcoal/30 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+            </div>
+         </div>
+       )}
+    </div>
+  );
+}
+
 export default function App() {
   const [lang, setLang] = useState<'vi' | 'en'>('vi');
   const t = TRANSLATIONS[lang];
@@ -434,6 +540,7 @@ export default function App() {
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [dbCertificates, setDbCertificates] = useState<any[]>([]);
   const [dbDealers, setDbDealers] = useState<Dealer[]>([]);
+  const [dbProjects, setDbProjects] = useState<Project[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -459,7 +566,13 @@ export default function App() {
       setDbDealers(dealers);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'dealers'));
 
-    // 4. Auth Listener
+    // 4. Fetch Projects from Firestore
+    const unsubProjects = onSnapshot(collection(db, 'projects'), (snapshot) => {
+      const projs = snapshot.docs.map(doc => doc.data() as Project);
+      setDbProjects(projs);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'projects'));
+
+    // 5. Auth Listener
     const unsubAuth = auth.onAuthStateChanged((u) => {
       setUser(u);
       // Bootstrapped admin check
@@ -470,15 +583,18 @@ export default function App() {
       unsubProducts();
       unsubCerts();
       unsubDealers();
+      unsubProjects();
       unsubAuth();
     };
   }, []);
 
   const mergedProducts = useMemo(() => {
-    // If we have products in DB, we use them. Otherwise fallback to static ones (initially).
-    // In a real app, you might want to seed the DB with initial PRODUCTS if it's empty.
     return dbProducts.length > 0 ? dbProducts : PRODUCTS;
   }, [dbProducts]);
+
+  const mergedProjectsData = useMemo(() => {
+    return dbProjects.length > 0 ? dbProjects : PROJECTS;
+  }, [dbProjects]);
 
   const handleLogin = async () => {
     try {
@@ -545,6 +661,23 @@ export default function App() {
       await deleteDoc(doc(db, 'dealers', id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `dealers/${id}`);
+    }
+  };
+
+  const handleSaveProject = async (project: Project) => {
+    try {
+      await setDoc(doc(db, 'projects', project.id), project);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `projects/${project.id}`);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!window.confirm(lang === 'vi' ? 'Bạn có chắc chắn muốn xóa dự án này?' : 'Are you sure you want to delete this project?')) return;
+    try {
+      await deleteDoc(doc(db, 'projects', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `projects/${id}`);
     }
   };
 
@@ -801,7 +934,7 @@ export default function App() {
                  
                  <div className="grid lg:grid-cols-2 gap-8">
                     {mergedProducts.map(p => (
-                       <AdminProductItem key={p.id} product={p} onSave={handleSaveProduct} onDelete={handleDeleteProduct} />
+                       <AdminProductItem key={p.id} product={p} onSave={handleSaveProduct} onDelete={handleDeleteProduct} lang={lang} />
                     ))}
                  </div>
                </section>
@@ -883,6 +1016,52 @@ export default function App() {
                    ))}
                  </div>
                </section>
+
+               {/* 4. Projects Management */}
+               <section>
+                 <div className="flex justify-between items-end mb-12">
+                   <div>
+                     <h2 className="text-4xl font-black text-brand-charcoal mb-2 tracking-tight">Quản lý Dự án</h2>
+                     <p className="text-sm text-brand-charcoal/40 font-medium tracking-wide">Cập nhật hình ảnh và thông tin dự án tiêu biểu</p>
+                   </div>
+                   <div className="flex gap-4">
+                     {dbProjects.length === 0 && (
+                       <button 
+                         onClick={async () => {
+                           if (!window.confirm('Bạn có muốn nhập dữ liệu dự án mẫu vào hệ thống không?')) return;
+                           for (const p of PROJECTS) {
+                             await handleSaveProject(p);
+                           }
+                           alert('Đã nhập thành công!');
+                         }}
+                         className="bg-brand-charcoal text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all"
+                       >
+                         <Save size={18} /> Nhập dữ liệu mẫu
+                       </button>
+                     )}
+                     <button 
+                       onClick={() => {
+                          const id = 'pj-' + Date.now();
+                          handleSaveProject({ 
+                            id, 
+                            name: 'Dự án mới G9ECO', 
+                            type: { vi: 'Hạng mục dự án', en: 'Project Type' },
+                            image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop'
+                          });
+                       }}
+                       className="bg-brand-green text-white px-8 py-5 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-brand-green/20"
+                     >
+                       <Plus size={20} /> Thêm dự án
+                     </button>
+                   </div>
+                 </div>
+                 
+                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {mergedProjectsData.map(p => (
+                       <AdminProjectItem key={p.id} project={p} onSave={handleSaveProject} onDelete={handleDeleteProject} />
+                    ))}
+                 </div>
+               </section>
             </div>
          </div>
        </div>
@@ -898,13 +1077,20 @@ export default function App() {
           <div className="flex items-center gap-2 sm:gap-6 relative z-10">
             <motion.div 
               whileHover={{ scale: 1.1, rotate: 5 }}
-              className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green organic-radius flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-lg shadow-brand-green/30"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-brand-green organic-radius flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-lg shadow-brand-green/30 shrink-0"
             >
               G9
             </motion.div>
-            <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-sans font-black tracking-tight gradient-text">G9 ECO</span>
-              <span className="text-[6px] sm:text-[8px] uppercase tracking-[0.2em] sm:tracking-[0.4em] text-brand-accent font-black opacity-60">AIG Group Member</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <img 
+                src="https://images.unsplash.com/photo-1627161683077-e34782c54d81?q=80&w=100&h=100&auto=format&fit=crop" 
+                alt="G9 ECO Icon" 
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg border border-white/20 shadow-xl"
+              />
+              <div className="flex flex-col">
+                <span className="text-lg sm:text-xl font-display font-black tracking-tight gradient-text">G9 ECO</span>
+                <span className="text-[6px] sm:text-[8px] uppercase tracking-[0.2em] sm:tracking-[0.4em] text-brand-accent font-black opacity-80">AIG Group Member</span>
+              </div>
             </div>
           </div>
           
@@ -934,11 +1120,13 @@ export default function App() {
             {isAdmin && (
               <button 
                 onClick={() => setShowAdminPanel(true)}
-                className="p-3 text-brand-green bg-brand-green/10 rounded-xl hover:bg-brand-green/20 transition-all shadow-sm flex items-center gap-2"
+                className="flex items-center gap-3 px-5 h-11 glass-card rounded-xl border border-white/60 hover:border-brand-accent hover:bg-brand-accent/5 transition-all group/admin shadow-xl shadow-black/5"
                 title="Quản trị hệ thống"
               >
-                <Settings size={20} />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Quản trị AI</span>
+                <div className="w-7 h-7 bg-brand-accent/10 rounded-lg flex items-center justify-center text-brand-accent group-hover/admin:bg-brand-accent group-hover/admin:text-white transition-all duration-500">
+                  <Settings size={16} className="group-hover/admin:rotate-90 transition-transform duration-700" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden lg:block text-brand-charcoal/60 group-hover/admin:text-brand-accent transition-colors">Quản trị AI</span>
               </button>
             )}
             <div className="flex bg-brand-charcoal/5 p-1 rounded-xl">
@@ -955,8 +1143,9 @@ export default function App() {
                 EN
               </button>
             </div>
-            <button className="hidden sm:block bg-brand-green text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-accent transition-all shadow-lg hover:shadow-brand-accent/20">
-              {t.btnCollab}
+            <button className="hidden sm:flex bg-brand-green text-white px-8 h-12 items-center rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-brand-charcoal transition-all shadow-xl shadow-brand-green/20 hover:shadow-black/20 group/collab overflow-hidden relative">
+              <span className="relative z-10">{t.btnCollab}</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-accent to-brand-green opacity-0 group-hover/collab:opacity-20 transition-opacity duration-500" />
             </button>
             <button 
               className="md:hidden p-3 text-brand-charcoal bg-brand-charcoal/5 rounded-xl hover:bg-brand-green/10 transition-colors"
@@ -1045,10 +1234,10 @@ export default function App() {
           </div>
 
           <div className="section-container relative z-10 w-full pt-20">
-            <div className="max-w-5xl">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
               <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 1.2, delay: 0.3 }}
               >
                   <div className="inline-flex items-center gap-4 bg-white shadow-xl px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.5em] mb-12 border border-brand-green/20">
@@ -1062,13 +1251,13 @@ export default function App() {
                 <div className="relative group">
                   <div className="absolute -top-6 -left-6 w-12 h-12 border-t-2 border-l-2 border-brand-accent opacity-0 group-hover:opacity-100 transition-all duration-500" />
                   <div className="absolute -bottom-6 -right-6 w-12 h-12 border-b-2 border-r-2 border-brand-accent opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-[10rem] font-sans leading-tight sm:leading-[0.9] mb-8 sm:mb-12 font-black tracking-tighter uppercase relative">
+                  <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-display leading-[0.8] mb-12 sm:mb-20 font-black tracking-tighter uppercase relative">
                     <span className="text-brand-charcoal block md:inline">G9</span>
                     <span className="gradient-text italic block md:inline md:ml-4">ECO</span><br />
-                    <span className="text-xl sm:text-3xl md:text-5xl lg:text-6xl text-brand-green font-sans tracking-tight opacity-40 block mt-4">{t.heroTitle}</span>
+                    <span className="text-xl sm:text-2xl md:text-4xl lg:text-5xl text-brand-green font-display tracking-tight block mt-12 sm:mt-16 opacity-90">{t.heroTitle}</span>
                   </h1>
                 </div>
-                  <p className="text-xl md:text-3xl text-brand-charcoal/50 mb-16 leading-relaxed font-medium max-w-3xl">
+                  <p className="text-lg md:text-2xl text-brand-charcoal/50 mb-16 leading-relaxed font-medium max-w-2xl">
                     {t.heroDesc}
                   </p>
                   <div className="flex flex-wrap gap-10 items-center">
@@ -1083,6 +1272,48 @@ export default function App() {
                       <span className="text-sm font-black text-brand-accent underline underline-offset-8 decoration-2 decoration-brand-accent/30">Bio-Tech Colors 2026</span>
                     </div>
                 </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ duration: 1.2, delay: 0.5 }}
+                className="relative hidden lg:block"
+              >
+                <div className="relative aspect-[4/5] rounded-[4rem] overflow-hidden shadow-2xl border-8 border-white group/hero-img">
+                  <img 
+                    src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=2070&auto=format&fit=crop" 
+                    alt="G9 ECO Premium Product" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Floating Tech Badges */}
+                  <div className="absolute top-10 right-10 bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/50 animate-bounce-slow">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center text-white">
+                        <Zap size={20} />
+                      </div>
+                      <div>
+                        <div className="text-[8px] font-black uppercase tracking-widest text-brand-charcoal/40">Technology</div>
+                        <div className="text-xs font-black text-brand-charcoal">NANO 4.0</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-10 left-10 bg-brand-green/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20">
+                     <div className="flex items-center gap-4">
+                        <div className="text-white">
+                           <div className="text-[8px] font-black uppercase tracking-widest opacity-60">Durability</div>
+                           <div className="text-xl font-black">20+ YEARS</div>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+                
+                {/* Decorative background elements behind image */}
+                <div className="absolute -top-12 -right-12 w-64 h-64 bg-brand-gold/10 rounded-full blur-3xl -z-10" />
+                <div className="absolute -bottom-12 -left-12 w-80 h-80 bg-brand-accent/10 rounded-full blur-3xl -z-10" />
               </motion.div>
             </div>
           </div>
@@ -1172,8 +1403,8 @@ export default function App() {
           <div className="absolute top-0 right-1/4 w-[60vw] h-[60vw] bg-brand-accent/5 rounded-full blur-[120px] pointer-events-none" />
           <div className="section-container relative z-10">
             <div className="text-center mb-32 max-w-4xl mx-auto relative">
-              <div className="absolute -top-20 left-1/2 -translate-x-1/2 text-[10rem] md:text-[20rem] font-black text-stroke-brand pointer-events-none select-none -z-10 opacity-20">G9</div>
-              <span className="text-brand-accent font-black tracking-[0.5em] uppercase text-xs mb-8 block">{t.visionSub}</span>
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 text-[10rem] md:text-[20rem] font-black text-stroke-brand pointer-events-none select-none -z-10 opacity-20 font-display">G9</div>
+              <span className="text-brand-accent font-black tracking-[0.5em] uppercase text-xs mb-8 block opacity-80">{t.visionSub}</span>
               <h1 className="section-title mb-10">
                 <span className="gradient-text">{t.visionTitle}</span>
               </h1>
@@ -1182,12 +1413,17 @@ export default function App() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-6 mb-40">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 md:gap-12 mb-40 max-w-6xl mx-auto">
               {CRITERIA_9[lang].map((item: any, i: number) => {
                 const borderColors = [
                   'border-emerald-500', 'border-amber-500', 'border-blue-500', 
                   'border-rose-500', 'border-green-500', 'border-indigo-500', 
                   'border-pink-500', 'border-orange-500', 'border-teal-500'
+                ];
+                const bgGradients = [
+                  'from-emerald-50', 'from-amber-50', 'from-blue-50', 
+                  'from-rose-50', 'from-green-50', 'from-indigo-50', 
+                  'from-pink-50', 'from-orange-50', 'from-teal-50'
                 ];
                 const textColors = [
                   'text-emerald-600', 'text-amber-600', 'text-blue-600', 
@@ -1196,13 +1432,18 @@ export default function App() {
                 ];
                 return (
                   <motion.div 
-                    whileHover={{ y: -12, scale: 1.05 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    whileHover={{ y: -15, scale: 1.02 }}
                     key={item.id} 
-                    className={`bg-brand-light p-8 rounded-[2.5rem] text-center border-b-4 ${borderColors[i]} flex flex-col items-center justify-center transition-all duration-500 hover:shadow-2xl hover:bg-white group`}
+                    className={`bg-white p-10 md:p-12 rounded-[3rem] text-left border-l-8 ${borderColors[i]} flex flex-col items-start justify-center transition-all duration-500 shadow-2xl hover:shadow-brand-accent/10 relative overflow-hidden group`}
                   >
-                    <div className={`text-4xl font-sans font-black mb-2 tracking-tight ${textColors[i]}`}>{item.id}</div>
-                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-charcoal/30 mb-4">{item.label}</div>
-                    <div className="text-[10px] font-black text-brand-charcoal leading-tight opacity-0 group-hover:opacity-100 transition-opacity">{item.detail}</div>
+                    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${bgGradients[i]} to-transparent opacity-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150 duration-700`} />
+                    <div className={`text-4xl md:text-6xl font-sans font-black mb-4 tracking-tighter ${textColors[i]} opacity-20 group-hover:opacity-100 transition-opacity`}>{item.id}</div>
+                    <div className="text-xl md:text-2xl font-black uppercase tracking-tight text-brand-charcoal mb-3 group-hover:text-brand-accent transition-colors">{item.label}</div>
+                    <div className="text-xs md:text-sm font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">{item.detail}</div>
                   </motion.div>
                 );
               })}
@@ -1238,8 +1479,8 @@ export default function App() {
                 <div className="relative w-full aspect-square max-w-sm rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white rotate-3 group-hover:rotate-0 transition-all duration-700">
                   <img src="https://images.unsplash.com/photo-1517581177682-a085bb7ffb15?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover" alt="Modern Architecture" />
                   <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal/80 to-transparent flex flex-col justify-end p-10">
-                    <div className="text-3xl font-black text-white mb-2 italic">Vì Cuộc Sống Xanh</div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-brand-green">Sơn G9ECO - AIG Group</div>
+                    <div className="text-3xl font-black text-white mb-2 italic font-display">Vì Cuộc Sống Xanh</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-brand-green font-display">Sơn G9ECO - AIG Group</div>
                   </div>
                 </div>
               </div>
@@ -1273,7 +1514,7 @@ export default function App() {
           <div className="section-container">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 sm:mb-24 md:mb-40 gap-8 lg:gap-16">
               <div className="max-w-3xl">
-                <span className="text-brand-green font-black tracking-[0.6em] uppercase text-[10px] mb-8 block">Bảo vệ tương lai</span>
+                <span className="text-brand-green font-black tracking-[0.6em] uppercase text-[10px] mb-8 block opacity-80">{t.footerVision}</span>
                 <h2 className="section-title">
                   <span className="gradient-text">{t.productTitle}</span>
                 </h2>
@@ -1308,7 +1549,7 @@ export default function App() {
                     transition={{ delay: i * 0.1 }}
                     className="glass-card rounded-[4rem] overflow-hidden group hover:shadow-2xl transition-all duration-700"
                   >
-                    <div className="relative aspect-[4/5] overflow-hidden m-4 rounded-[3rem]">
+                    <div className="relative aspect-[4/5] overflow-hidden m-4 rounded-[3rem] border border-white/20">
                       <img 
                         src={product.image} 
                         alt={product.name} 
@@ -1320,7 +1561,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="p-12 pt-6">
-                      <h3 className="text-3xl font-black text-brand-charcoal mb-4 tracking-tight leading-snug">{product.name}</h3>
+                      <h3 className="text-3xl font-black text-brand-charcoal mb-4 tracking-tight leading-snug font-display">{product.name}</h3>
                       <p className="text-sm text-brand-charcoal/60 mb-6 line-clamp-2 font-medium leading-relaxed">{product.description[lang]}</p>
                       
                       <div className="space-y-3 mb-10">
@@ -1385,7 +1626,7 @@ export default function App() {
                   transition={{ delay: index * 0.1 }}
                   className="group relative cursor-pointer"
                 >
-                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light shadow-lg transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2 border border-brand-charcoal/5">
+                  <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-brand-light shadow-lg transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2 border border-brand-charcoal/10">
                     <img 
                       src={cert.imageUrl} 
                       alt={cert.title} 
@@ -1448,7 +1689,7 @@ export default function App() {
                <div className="inline-flex items-center gap-4 bg-white/10 border border-white/20 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-[0.5em] mb-12 shadow-2xl">
                   <Calculator size={20} className="text-brand-accent animate-spin-slow" /> {t.ecoPredictor}
                </div>
-                 <h2 className="text-5xl sm:text-7xl md:text-9xl font-serif font-black leading-[0.95] sm:leading-[0.85] mb-12 tracking-tighter uppercase relative">
+                 <h2 className="text-4xl sm:text-6xl md:text-8xl font-serif font-black leading-tight sm:leading-tight mb-12 tracking-tight uppercase relative">
                    {t.calcTitle}
                    <div className="absolute -bottom-4 left-0 w-32 h-1 bg-brand-accent animate-pulse" />
                  </h2>
@@ -1542,6 +1783,24 @@ export default function App() {
                             />
                             <span className="absolute right-0 bottom-8 sm:bottom-16 text-2xl sm:text-6xl font-black text-white/10 uppercase tracking-widest pointer-events-none">m²</span>
                           </div>
+
+                          {calcStep === 1 && (
+                            <div className="mb-12 p-10 rounded-[3rem] bg-white/5 border border-white/10 group/upload relative overflow-hidden transition-all hover:bg-white/10">
+                               <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/5 to-transparent pointer-events-none" />
+                               <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                                  <div className="w-20 h-20 rounded-3xl bg-brand-accent/20 flex items-center justify-center text-brand-accent shrink-0">
+                                     <ImageIcon size={36} />
+                                  </div>
+                                  <div className="flex-1 text-center md:text-left">
+                                     <div className="text-xl font-black text-white mb-1 uppercase tracking-tight">{t.uploadPhoto}</div>
+                                     <div className="text-[11px] font-bold text-white/40 uppercase tracking-widest leading-relaxed">{t.uploadPhotoDesc}</div>
+                                  </div>
+                                  <button className="px-10 py-5 bg-brand-accent text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-brand-accent/20">
+                                    {t.btnAddNew}
+                                  </button>
+                               </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1549,20 +1808,20 @@ export default function App() {
                              onClick={() => setWallCondition('new')}
                              className={`px-8 py-8 rounded-3xl border-2 transition-all text-left flex flex-col gap-3 ${wallCondition === 'new' ? 'border-brand-accent bg-brand-accent/10' : 'border-white/10 hover:bg-white/5'}`}
                            >
-                             <span className="text-sm font-black uppercase tracking-widest">{lang === 'vi' ? 'TƯỜNG MỚI' : 'NEW WALL'}</span>
+                             <span className="text-sm font-black uppercase tracking-widest">{t.wallNew.split(' (')[0]}</span>
                              <span className="text-[10px] text-white/50 leading-relaxed">{t.wallNew}</span>
                            </button>
                            <button 
                              onClick={() => setWallCondition('repaint')}
                              className={`px-8 py-8 rounded-3xl border-2 transition-all text-left flex flex-col gap-3 ${wallCondition === 'repaint' ? 'border-brand-accent bg-brand-accent/10' : 'border-white/10 hover:bg-white/5'}`}
                            >
-                             <span className="text-sm font-black uppercase tracking-widest">{lang === 'vi' ? 'SƠN LẠI' : 'REPAINT'}</span>
+                             <span className="text-sm font-black uppercase tracking-widest">{t.wallOld.split(' (')[0]}</span>
                              <span className="text-[10px] text-white/50 leading-relaxed">{t.wallOld}</span>
                            </button>
                         </div>
 
                         {surfaceType === 'interior' && (
-                          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 mt-12">
                              <label className="text-[10px] font-black uppercase tracking-[0.8em] text-brand-accent mb-6 block">{lang === 'vi' ? 'SỐ TẦNG' : 'FLOORS'}</label>
                              <div className="flex gap-4">
                                {[1, 2, 3, 4, 5].map(num => (
@@ -1827,21 +2086,21 @@ export default function App() {
                                 </button>
                               </div>
 
-                                  <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-6 border-t border-white/5">
+                                  <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-6 border-t border-white/10">
                                     <div className="min-w-0">
-                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Diện tích sàn' : 'Floor Area'}</div>
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/60 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Diện tích sàn' : 'Floor Area'}</div>
                                       <div className="text-[10px] sm:text-lg font-bold truncate text-white">{area} m²</div>
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'DT Sơn thực tế' : 'Real Surface'}</div>
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/60 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'DT Sơn thực tế' : 'Real Surface'}</div>
                                       <div className="text-[10px] sm:text-lg font-bold text-brand-green truncate">{estimation.realArea.toLocaleString()} m²</div>
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Không gian' : 'Space'}</div>
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/60 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Không gian' : 'Space'}</div>
                                       <div className="text-[10px] sm:text-lg font-bold truncate text-white">{surfaceType === 'interior' ? t.surfaceInterior : t.surfaceExterior}</div>
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="text-[7px] sm:text-[8px] font-black text-white/50 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Loại hình' : 'Build Type'}</div>
+                                      <div className="text-[7px] sm:text-[8px] font-black text-white/60 uppercase tracking-widest mb-1 truncate">{lang === 'vi' ? 'Loại hình' : 'Build Type'}</div>
                                       <div className="text-[10px] sm:text-lg font-bold truncate text-white">{t[`houseType${houseType.charAt(0).toUpperCase() + houseType.slice(1)}` as keyof typeof t] || houseType}</div>
                                     </div>
                                   </div>
@@ -2087,16 +2346,19 @@ export default function App() {
                 <h3 className="text-2xl font-black text-brand-charcoal mb-12 flex items-center gap-4 relative z-10">
                   <Building2 size={24} className="text-brand-green" /> {t.projectTitle}
                 </h3>
-                <div className="space-y-6 relative z-10">
-                  {PROJECTS.map((project, i) => (
+                <div className="space-y-6 relative z-10 font-sans">
+                  {mergedProjectsData.map((project, i) => (
                     <motion.div 
                       key={i}
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="group flex items-center justify-between py-6 border-b border-brand-charcoal/5 last:border-0"
+                      className="group flex flex-col md:flex-row items-start md:items-center gap-6 py-6 border-b border-brand-charcoal/5 last:border-0"
                     >
-                      <div>
+                      <div className="w-24 h-24 md:w-32 md:h-20 shrink-0 rounded-2xl overflow-hidden bg-brand-light border border-brand-charcoal/5 group-hover:shadow-lg transition-all duration-500">
+                         <img src={project.image} alt={project.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      </div>
+                      <div className="flex-1">
                         <div className="text-[10px] font-bold text-brand-accent uppercase tracking-widest mb-1">{project.type[lang]}</div>
                         <div className="text-xl font-black text-brand-charcoal group-hover:text-brand-green transition-colors">{project.name}</div>
                       </div>
@@ -2210,11 +2472,18 @@ export default function App() {
             <div className="lg:col-span-1">
               <div className="flex items-center gap-6 mb-16">
                 <div className="w-20 h-20 bg-brand-green organic-radius flex items-center justify-center text-white font-black text-4xl shadow-2xl shadow-brand-green/40">G9</div>
-                <div className="flex flex-col">
-                <span className="text-3xl font-black tracking-tight">G9 ECO</span>
-                <span className="text-[10px] uppercase tracking-[0.5em] text-brand-accent font-black">{t.footerSub}</span>
+                <div className="flex items-center gap-5">
+                  <img 
+                    src="https://images.unsplash.com/photo-1627161683077-e34782c54d81?q=80&w=150&h=150&auto=format&fit=crop" 
+                    alt="G9 ECO Logo" 
+                    className="w-16 h-16 object-contain rounded-2xl border border-white/10"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-3xl font-black tracking-tight">G9 ECO</span>
+                    <span className="text-[10px] uppercase tracking-[0.5em] text-brand-accent font-black">{t.footerSub}</span>
+                  </div>
+                </div>
               </div>
-            </div>
             <div className="space-y-4 text-white/40 font-semibold text-sm mb-16">
               <p className="text-white text-lg font-black mb-4">CTCP Quốc tế AIG - Thương hiệu Sơn G9ECO</p>
               <p className="flex items-start gap-4"><MapPin size={22} className="text-brand-green shrink-0" /> <span>{t.footerAddressHead} Tầng 8, Tòa nhà Licogi13, Số 164 Khuất Duy Tiến, Thanh Xuân, Hà Nội</span></p>

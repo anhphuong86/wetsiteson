@@ -61,6 +61,25 @@
         "phone": { "type": "string" }
       },
       "required": ["id", "name", "region", "address", "phone"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A featured construction project using G9ECO products.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": {
+          "type": "object",
+          "properties": {
+            "vi": { "type": "string" },
+            "en": { "type": "string" }
+          },
+          "required": ["vi", "en"]
+        },
+        "image": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "image"]
     }
   },
   "firestore": {
@@ -75,6 +94,10 @@
     "/dealers/{dealerId}": {
       "schema": "Dealer",
       "description": "Collection of regional dealers."
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of featured projects."
     }
   }
 }
