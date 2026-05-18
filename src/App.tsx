@@ -90,13 +90,22 @@ function AdminProductItem({ product, onSave, onDelete, lang }: { product: Produc
 
     try {
       setUploading(true);
-      const storageRef = ref(storage, `products/${localProduct.id || Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      if (!storage) throw new Error("Firebase Storage is not initialized.");
+      
+      const uploadPromise = async () => {
+        const storageRef = ref(storage, `products/${localProduct.id || Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
+      };
+
+      // Timeout after 30s
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Hết thời gian tải lên (Timeout). Hãy kiểm tra kết nối.")), 30000));
+      
+      const url = await Promise.race([uploadPromise(), timeout]) as string;
       handleFieldChange('image', url);
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } catch (error: any) {
+      console.error("Upload error details:", error);
+      alert(`Lỗi khi tải ảnh lên: ${error.message || 'Lỗi không xác định'}. Hãy chắc chắn bạn đã bật Firebase Storage và có kết nối mạng ổn định.`);
     } finally {
       setUploading(false);
     }
@@ -255,13 +264,21 @@ function AdminCertItem({ cert, onSave, onDelete }: { cert: any, onSave: (c: any)
 
     try {
       setUploading(true);
-      const storageRef = ref(storage, `certificates/${localCert.id || Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      if (!storage) throw new Error("Firebase Storage is not initialized.");
+      
+      const uploadPromise = async () => {
+        const storageRef = ref(storage, `certificates/${localCert.id || Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
+      };
+
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Hết thời gian tải lên (Timeout). Hãy kiểm tra kết nối.")), 30000));
+      
+      const url = await Promise.race([uploadPromise(), timeout]) as string;
       setLocalCert({ ...localCert, imageUrl: url });
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } catch (error: any) {
+      console.error("Cert upload error:", error);
+      alert(`Lỗi khi tải ảnh lên: ${error.message || 'Lỗi không xác định'}. Hãy chắc chắn bạn đã bật Firebase Storage.`);
     } finally {
       setUploading(false);
     }
@@ -433,13 +450,21 @@ function AdminProjectItem({ project, onSave, onDelete }: { project: Project, onS
     if (!file) return;
     try {
       setUploading(true);
-      const storageRef = ref(storage, `projects/${localProject.id || Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      if (!storage) throw new Error("Firebase Storage is not initialized.");
+      
+      const uploadPromise = async () => {
+        const storageRef = ref(storage, `projects/${localProject.id || Date.now()}-${file.name}`);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
+      };
+
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Hết thời gian tải lên (Timeout). Hãy kiểm tra kết nối.")), 30000));
+      
+      const url = await Promise.race([uploadPromise(), timeout]) as string;
       setLocalProject({ ...localProject, image: url });
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+    } catch (error: any) {
+      console.error("Project upload error:", error);
+      alert(`Lỗi khi tải ảnh lên: ${error.message || 'Lỗi không xác định'}. Hãy chắc chắn bạn đã bật Firebase Storage.`);
     } finally {
       setUploading(false);
     }
@@ -589,11 +614,29 @@ export default function App() {
   }, []);
 
   const mergedProducts = useMemo(() => {
-    return dbProducts.length > 0 ? dbProducts : PRODUCTS;
+    const combined = [...PRODUCTS];
+    dbProducts.forEach(dbP => {
+      const index = combined.findIndex(p => p.id === dbP.id);
+      if (index !== -1) {
+        combined[index] = dbP;
+      } else {
+        combined.push(dbP);
+      }
+    });
+    return combined;
   }, [dbProducts]);
 
   const mergedProjectsData = useMemo(() => {
-    return dbProjects.length > 0 ? dbProjects : PROJECTS;
+    const combined = [...PROJECTS];
+    dbProjects.forEach(dbProj => {
+      const index = combined.findIndex(p => p.id === dbProj.id);
+      if (index !== -1) {
+        combined[index] = dbProj;
+      } else {
+        combined.push(dbProj);
+      }
+    });
+    return combined;
   }, [dbProjects]);
 
   const handleLogin = async () => {
